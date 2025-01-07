@@ -1,0 +1,99 @@
+diff --git a/flowop.c b/flowop.c
+index 786caed..17bb84e 100644
+--- a/flowop.c
++++ b/flowop.c
+@@ -194,12 +194,14 @@ flowop_endop(threadflow_t *threadflow, flowop_t *flowop, int64_t bytes)
+ 		threadflow->tf_stats.fs_rbytes += bytes;
+ 		threadflow->tf_stats.fs_rcount++;
+ 		flowop->fo_stats.fs_rcount++;
++        // flowop->fo_stats.fs_rbytes += bytes; // ADDED
+ 		controlstats.fs_rbytes += bytes;
+ 		controlstats.fs_rcount++;
+ 	} else if (flowop->fo_attrs & FLOW_ATTR_WRITE) {
+ 		threadflow->tf_stats.fs_wbytes += bytes;
+ 		threadflow->tf_stats.fs_wcount++;
+ 		flowop->fo_stats.fs_wcount++;
++        // flowop->fo_stats.fs_wbytes += bytes; // ADDED
+ 		controlstats.fs_wbytes += bytes;
+ 		controlstats.fs_wcount++;
+ 	}
+diff --git a/ipc.h b/ipc.h
+index 8361799..a6cdc80 100644
+--- a/ipc.h
++++ b/ipc.h
+@@ -74,7 +74,7 @@
+  * has to increase these values
+  */
+ #define	FILEBENCH_NFILESETS		(16)
+-#define	FILEBENCH_NFILESETENTRIES	(1024 * 1024)
++#define	FILEBENCH_NFILESETENTRIES	(1024 * 1024 * 10)
+ #define	FILEBENCH_NPROCFLOWS		(1024)
+ #define	FILEBENCH_NTHREADFLOWS 		(1024)
+ /* 16 flowops per threadflow seems reasonable */
+diff --git a/stats.c b/stats.c
+index b511789..d713b1b 100644
+--- a/stats.c
++++ b/stats.c
+@@ -155,7 +155,7 @@ stats_snap(void)
+ 		}
+ 
+ 		filebench_log(LOG_DEBUG_SCRIPT,
+-		    "flowop %-20s-%4d  - %5d ops %5.1lf ops/sec %5.1lfmb/s "
++		    "flowop %-20s-%4d  - %5d ops %5.1lf ops/sec %5.3lfmb/s "
+ 		    "%8.3fms/op",
+ 		    flowop->fo_name,
+ 		    flowop->fo_instance,
+@@ -185,20 +185,19 @@ stats_snap(void)
+ 			continue;
+ 		}
+ 
+-		(void) snprintf(line, sizeof(line), "%-20s %dops %8.0lfops/s "
+-		    "%5.1lfmb/s %8.3fms/op",
+-		    flowop->fo_name,
+-		    flowop->fo_stats.fs_count,
+-		    flowop->fo_stats.fs_count / total_time_sec,
+-		    (flowop->fo_stats.fs_bytes / MB_FLOAT) / total_time_sec,
++		(void) snprintf(line, sizeof(line), "%-20s %dops %8.0lfops/s %5.1lfmb/s %8.3fµs/op",
++		    flowop->fo_name, // OK
++		    flowop->fo_stats.fs_count, // OK
++		    flowop->fo_stats.fs_count / ((double)(flowop->fo_stats.fs_total_lat) / SEC2NS_FLOAT), // FIXED
++		    (flowop->fo_stats.fs_bytes / MB_FLOAT) / ((double)(flowop->fo_stats.fs_total_lat) / SEC2NS_FLOAT), // FIXED
+ 		    flowop->fo_stats.fs_count ?
+ 		    flowop->fo_stats.fs_total_lat /
+-		    (flowop->fo_stats.fs_count * SEC2MS_FLOAT) : 0);
++		    (flowop->fo_stats.fs_count * (double)1000.0) : 0); // OK
+ 		(void) strcat(str, line);
+ 
+-		(void) snprintf(line, sizeof(line)," [%.3fms - %5.3fms]",
+-			flowop->fo_stats.fs_minlat / SEC2MS_FLOAT,
+-			flowop->fo_stats.fs_maxlat / SEC2MS_FLOAT);
++		(void) snprintf(line, sizeof(line)," [%.3fµs - %5.3fµs]",
++			flowop->fo_stats.fs_minlat / (double)1000.0,
++			flowop->fo_stats.fs_maxlat / (double)1000.0);
+ 		(void) strcat(str, line);
+ 
+ 		if (filebench_shm->lathist_enabled) {
+@@ -223,17 +222,16 @@ stats_snap(void)
+ 	free(str);
+ 
+ 	filebench_log(LOG_INFO,
+-	    "IO Summary: %5d ops %5.3lf ops/s %0.0lf/%0.0lf rd/wr "
+-	    "%5.1lfmb/s %5.3fms/op",
++	    "IO Summary: %5d ops %5.3lf total ops/s %5.3lf/%5.3lf rd/wr ops/s %5.3lfmb/s %5.3fµs/op",
+ 	    iostat->fs_count + aiostat->fs_count,
+-	    (iostat->fs_count + aiostat->fs_count) / total_time_sec,
+-	    (iostat->fs_rcount + aiostat->fs_rcount) / total_time_sec,
+-	    (iostat->fs_wcount + aiostat->fs_wcount) / total_time_sec,
++	    (iostat->fs_count + aiostat->fs_count) / ((double)(iostat->fs_total_lat) / SEC2NS_FLOAT), // FIXED
++	    (iostat->fs_rcount + aiostat->fs_rcount) / ((double)(iostat->fs_total_lat) / SEC2NS_FLOAT), // FIXED
++	    (iostat->fs_wcount + aiostat->fs_wcount) / ((double)(iostat->fs_total_lat) / SEC2NS_FLOAT), // FIXED
+ 	    ((iostat->fs_bytes + aiostat->fs_bytes) / MB_FLOAT)
+-						/ total_time_sec,
++						/ ((double)(iostat->fs_total_lat) / SEC2NS_FLOAT), // FIXED
+ 	    (iostat->fs_count + aiostat->fs_count) ?
+ 	    (iostat->fs_total_lat + aiostat->fs_total_lat) /
+-	    ((iostat->fs_count + aiostat->fs_count) * SEC2MS_FLOAT) : 0);
++	    ((iostat->fs_count + aiostat->fs_count) * (double)1000.0) : 0);
+ 
+ 	filebench_shm->shm_bequiet = 0;
+ }

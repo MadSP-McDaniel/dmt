@@ -1,0 +1,33 @@
+diff --git a/libbdus/src/backend.c b/libbdus/src/backend.c
+index 9c83d0f..28e2fb4 100644
+--- a/libbdus/src/backend.c
++++ b/libbdus/src/backend.c
+@@ -70,17 +70,17 @@ static bool
+ 
+     // daemonize the current process
+ 
+-    if (!ctx->attrs->dont_daemonize)
+-    {
+-        if (ctx->attrs->log)
+-            bdus_log_no_args_("daemonizing...");
+-
+-        if (!bdus_daemonize_())
+-        {
+-            bdus_set_error_(EINVAL, "Failed to daemonize the current process");
+-            return false;
+-        }
+-    }
++    // if (!ctx->attrs->dont_daemonize)
++    // {
++    //     if (ctx->attrs->log)
++    //         bdus_log_no_args_("daemonizing...");
++
++    //     if (!bdus_daemonize_())
++    //     {
++    //         bdus_set_error_(EINVAL, "Failed to daemonize the current process");
++    //         return false;
++    //     }
++    // }
+ 
+     // success
+ 
